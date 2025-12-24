@@ -1,0 +1,17 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景圆形 -->
+  <circle cx="64" cy="64" r="60" fill="#4F46E5" stroke="#312E81" stroke-width="2"/>
+  
+  <!-- 表单图标 - 文档样式 -->
+  <rect x="32" y="28" width="64" height="80" rx="4" fill="white" opacity="0.9"/>
+  
+  <!-- 表单字段线条 -->
+  <line x1="40" y1="42" x2="88" y2="42" stroke="#4F46E5" stroke-width="3" stroke-linecap="round"/>
+  <line x1="40" y1="58" x2="88" y2="58" stroke="#4F46E5" stroke-width="3" stroke-linecap="round"/>
+  <line x1="40" y1="74" x2="88" y2="74" stroke="#4F46E5" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- 自动填充箭头 -->
+  <path d="M 96 50 L 110 64 L 96 78" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <line x1="110" y1="64" x2="88" y2="64" stroke="white" stroke-width="4" stroke-linecap="round"/>
+</svg>
+

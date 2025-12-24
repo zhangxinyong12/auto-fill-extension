@@ -1,0 +1,54 @@
+{
+  "name": "auto-fill-extension",
+  "displayName": "表单自动填充助手",
+  "version": "0.0.1",
+  "description": "自动识别页面表单并生成模拟数据填充，方便测试使用",
+  "author": "zhangxinyong",
+  "scripts": {
+    "dev": "plasmo dev",
+    "build": "plasmo build",
+    "package": "plasmo package",
+    "generate-icons": "node generate-icons.js"
+  },
+  "dependencies": {
+    "@plasmohq/storage": "^1.15.0",
+    "plasmo": "0.90.5",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.0.258",
+    "@types/node": "20.11.5",
+    "@types/react": "18.2.48",
+    "@types/react-dom": "18.2.18",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^3.4.0",
+    "typescript": "5.3.3"
+  },
+  "manifest": {
+    "name": "表单自动填充助手",
+    "description": "自动识别页面表单并生成模拟数据填充，方便测试使用",
+    "host_permissions": [
+      "http://*/*",
+      "https://*/*"
+    ],
+    "permissions": [
+      "storage",
+      "activeTab"
+    ],
+    "web_accessible_resources": [
+      {
+        "resources": [
+          "assets/*.png",
+          "assets/*.jpg",
+          "assets/*.jpeg"
+        ],
+        "matches": [
+          "<all_urls>"
+        ]
+      }
+    ]
+  }
+}
