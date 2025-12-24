@@ -3,7 +3,17 @@
  * 用于识别和操作页面表单元素
  */
 
-import type { FormField } from "./spark-api"
+/**
+ * 表单字段信息接口
+ */
+export interface FormField {
+  label: string
+  type: string
+  name?: string
+  id?: string
+  placeholder?: string
+  required?: boolean
+}
 
 /**
  * 查找当前活动的弹窗（modal）元素
@@ -150,7 +160,8 @@ export function getFormFields(): FormField[] {
         inputElement.type === "hidden" ||
         inputElement.type === "submit" ||
         inputElement.type === "button" ||
-        inputElement.type === "reset"
+        inputElement.type === "reset" ||
+        inputElement.type === "radio" // 跳过radio按钮，通常不需要自动填充
       ) {
         return
       }
@@ -178,19 +189,43 @@ export function getFormFields(): FormField[] {
       }
     }
 
-    // 如果通过for属性没找到label，使用placeholder或name作为label
+    // 如果通过for属性没找到label，优先使用id或name，最后才使用placeholder
+    // 因为placeholder是提示文本，不应该作为字段标识
     if (!label) {
-      // HTMLSelectElement 没有 placeholder 属性，需要类型判断
-      const placeholder =
-        element.tagName === "SELECT"
-          ? undefined
-          : (element as HTMLInputElement | HTMLTextAreaElement).placeholder
-      label =
-        placeholder ||
-        element.name ||
-        element.id ||
-        element.type ||
-        "未命名字段"
+      // 优先使用id或name作为label（如果它们有语义）
+      if (id && id.length > 0 && !id.match(/^:r\d+:$/)) {
+        // id有值且不是radio按钮的id格式（如:r2:），使用id
+        label = id
+      } else if (name && name.length > 0 && !name.match(/^:r\d+:$/)) {
+        // name有值且不是radio按钮的name格式，使用name
+        label = name
+      } else {
+        // HTMLSelectElement 没有 placeholder 属性，需要类型判断
+        const placeholder =
+          element.tagName === "SELECT"
+            ? undefined
+            : (element as HTMLInputElement | HTMLTextAreaElement).placeholder
+        // 如果placeholder存在且不是纯提示文本（如"请输入"），可以使用
+        if (placeholder && placeholder.length > 0) {
+          label = placeholder
+        } else {
+          // 最后才使用type或默认值
+          label = element.type || "未命名字段"
+        }
+      }
+    }
+
+    // 过滤掉无意义的label（如单个字符、纯类型名等）
+    // 如果label是"text"、"input"等无意义的文本，且没有id和name，则跳过该字段
+    if (
+      (!id || id.match(/^:r\d+:$/)) &&
+      (!name || name.match(/^:r\d+:$/)) &&
+      (label === "text" ||
+        label === "input" ||
+        label === "未命名字段" ||
+        label.length <= 1)
+    ) {
+      return
     }
 
     // 获取字段类型

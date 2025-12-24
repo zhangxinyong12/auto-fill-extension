@@ -33,7 +33,6 @@ auto-fill-extension/
 ├── options.tsx          # 选项页面，详细配置界面（含示例图片）
 ├── background.ts        # 后台脚本，处理跨域API调用
 ├── lib/
-│   ├── spark-api.ts    # 科大讯飞 API 调用模块（备用）
 │   └── form-utils.ts   # 表单工具函数（识别、填充表单）
 ├── assets/
 │   ├── icon.png        # 插件图标

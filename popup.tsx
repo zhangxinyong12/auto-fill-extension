@@ -13,13 +13,19 @@ function IndexPopup() {
   // 状态管理：API密钥（APIPassword）、保存状态
   const [apiPassword, setApiPassword] = useState('')
   const [saved, setSaved] = useState(false)
+  // 插件启用状态
+  const [pluginEnabled, setPluginEnabled] = useState(true)
+  // 当前网站域名
+  const [currentDomain, setCurrentDomain] = useState<string>('')
+  // 当前网站是否被禁用
+  const [currentDomainDisabled, setCurrentDomainDisabled] = useState(false)
   
   // 创建存储实例，用于读取和保存配置
   const storage = new Storage()
 
   /**
    * 组件挂载时加载已保存的配置
-   * 从浏览器本地存储中读取之前保存的APIPassword
+   * 从浏览器本地存储中读取之前保存的APIPassword和启用状态
    */
   useEffect(() => {
     const loadConfig = async () => {
@@ -29,6 +35,30 @@ function IndexPopup() {
       // 如果存在已保存的配置，则填充到表单中
       if (savedPassword) {
         setApiPassword(savedPassword)
+      }
+
+      // 加载插件启用状态（默认为true，即启用）
+      const enabled = await storage.get<boolean>('pluginEnabled')
+      setPluginEnabled(enabled !== false) // 如果为undefined，默认为true
+
+      // 获取当前标签页的域名
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+        if (tabs[0] && tabs[0].url) {
+          const url = new URL(tabs[0].url)
+          const domain = url.hostname
+          setCurrentDomain(domain)
+
+          // 检查当前域名是否被禁用
+          const disabledDomains = await storage.get<string[]>('disabledDomains')
+          if (disabledDomains && disabledDomains.includes(domain)) {
+            setCurrentDomainDisabled(true)
+          } else {
+            setCurrentDomainDisabled(false)
+          }
+        }
+      } catch (error) {
+        console.error('获取当前域名失败:', error)
       }
     }
     loadConfig()
@@ -64,6 +94,51 @@ function IndexPopup() {
   const handleViewExample = () => {
     // 打开options页面，图片会在options页面中显示
     chrome.runtime.openOptionsPage()
+  }
+
+  /**
+   * 切换全局插件启用/禁用状态
+   */
+  const handleTogglePlugin = async () => {
+    try {
+      const newState = !pluginEnabled
+      await storage.set('pluginEnabled', newState)
+      setPluginEnabled(newState)
+    } catch (error) {
+      console.error('切换插件启用状态失败:', error)
+      alert('操作失败，请重试')
+    }
+  }
+
+  /**
+   * 切换当前网站的启用/禁用状态
+   */
+  const handleToggleCurrentDomain = async () => {
+    try {
+      if (!currentDomain) {
+        alert('无法获取当前网站域名')
+        return
+      }
+
+      const disabledDomains = await storage.get<string[]>('disabledDomains') || []
+      const isCurrentlyDisabled = disabledDomains.includes(currentDomain)
+
+      let newDisabledDomains: string[]
+      if (isCurrentlyDisabled) {
+        // 如果当前已禁用，则从列表中移除（启用）
+        newDisabledDomains = disabledDomains.filter(d => d !== currentDomain)
+        setCurrentDomainDisabled(false)
+      } else {
+        // 如果当前未禁用，则添加到列表中（禁用）
+        newDisabledDomains = [...disabledDomains, currentDomain]
+        setCurrentDomainDisabled(true)
+      }
+
+      await storage.set('disabledDomains', newDisabledDomains)
+    } catch (error) {
+      console.error('切换网站启用状态失败:', error)
+      alert('操作失败，请重试')
+    }
   }
 
   return (
@@ -219,6 +294,191 @@ function IndexPopup() {
         >
           📷 查看示例
         </button>
+      </div>
+
+      {/* 插件启用/禁用控制区域 */}
+      <div
+        style={{
+          marginBottom: '20px',
+          padding: '16px',
+          backgroundColor: '#fafafa',
+          borderRadius: '4px',
+          border: '1px solid #d9d9d9',
+        }}
+      >
+        <h3
+          style={{
+            fontSize: '14px',
+            fontWeight: 600,
+            marginBottom: '12px',
+            color: '#262626',
+          }}
+        >
+          插件控制
+        </h3>
+
+        {/* 全局启用/禁用开关 */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px',
+            padding: '8px 0',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: '13px',
+                fontWeight: 500,
+                color: '#262626',
+                marginBottom: '4px',
+              }}
+            >
+              全局启用/禁用
+            </div>
+            <div
+              style={{
+                fontSize: '11px',
+                color: '#8c8c8c',
+              }}
+            >
+              控制整个插件是否启用
+            </div>
+          </div>
+          <label
+            style={{
+              position: 'relative',
+              display: 'inline-block',
+              width: '44px',
+              height: '22px',
+              cursor: 'pointer',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={pluginEnabled}
+              onChange={handleTogglePlugin}
+              style={{
+                opacity: 0,
+                width: 0,
+                height: 0,
+              }}
+            />
+            <span
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: pluginEnabled ? '#1890ff' : '#ccc',
+                borderRadius: '22px',
+                transition: 'background-color 0.3s',
+              }}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  content: '""',
+                  height: '18px',
+                  width: '18px',
+                  left: pluginEnabled ? '22px' : '2px',
+                  bottom: '2px',
+                  backgroundColor: '#fff',
+                  borderRadius: '50%',
+                  transition: 'left 0.3s',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                }}
+              />
+            </span>
+          </label>
+        </div>
+
+        {/* 当前网站启用/禁用开关 */}
+        {currentDomain && (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '8px 0',
+              borderTop: '1px solid #e8e8e8',
+              paddingTop: '12px',
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: '#262626',
+                  marginBottom: '4px',
+                }}
+              >
+                当前网站：{currentDomain}
+              </div>
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: currentDomainDisabled ? '#ff4d4f' : '#52c41a',
+                }}
+              >
+                {currentDomainDisabled ? '已禁用' : '已启用'}
+              </div>
+            </div>
+            <label
+              style={{
+                position: 'relative',
+                display: 'inline-block',
+                width: '44px',
+                height: '22px',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={!currentDomainDisabled}
+                onChange={handleToggleCurrentDomain}
+                disabled={!pluginEnabled}
+                style={{
+                  opacity: 0,
+                  width: 0,
+                  height: 0,
+                }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: !currentDomainDisabled ? '#1890ff' : '#ccc',
+                  borderRadius: '22px',
+                  transition: 'background-color 0.3s',
+                  opacity: pluginEnabled ? 1 : 0.5,
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    content: '""',
+                    height: '18px',
+                    width: '18px',
+                    left: !currentDomainDisabled ? '22px' : '2px',
+                    bottom: '2px',
+                    backgroundColor: '#fff',
+                    borderRadius: '50%',
+                    transition: 'left 0.3s',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  }}
+                />
+              </span>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* 配置说明 */}
