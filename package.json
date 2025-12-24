@@ -8,7 +8,8 @@
     "dev": "plasmo dev",
     "build": "plasmo build",
     "package": "plasmo package",
-    "generate-icons": "node generate-icons.js"
+    "generate-icons": "node generate-icons.js",
+    "generate-screenshots": "node generate-screenshots.js"
   },
   "dependencies": {
     "@plasmohq/storage": "^1.15.0",
