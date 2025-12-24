@@ -3,7 +3,7 @@
  * 用于识别和操作页面表单元素
  */
 
-import type { FormField } from './spark-api'
+import type { FormField } from "./spark-api"
 
 /**
  * 查找当前活动的弹窗（modal）元素
@@ -18,53 +18,62 @@ function findActiveModal(): HTMLElement | null {
     // 2. 较高的 z-index（通常 >= 1000）
     // 3. 可见（display !== 'none', visibility !== 'hidden'）
     // 4. 可能包含 role="dialog" 或常见的弹窗类名
-    
-    const allElements = document.querySelectorAll('*')
+
+    const allElements = document.querySelectorAll("*")
     const candidateModals: Array<{ element: HTMLElement; zIndex: number }> = []
 
     for (const element of allElements) {
       try {
         const htmlElement = element as HTMLElement
-        
+
         // 跳过我们的自动填充按钮本身（避免误判）
-        if (htmlElement.getAttribute('data-plasmo-inline') || 
-            htmlElement.closest('[data-plasmo-inline]')) {
+        if (
+          htmlElement.getAttribute("data-plasmo-inline") ||
+          htmlElement.closest("[data-plasmo-inline]")
+        ) {
           continue
         }
-        
+
         const style = window.getComputedStyle(htmlElement)
-        
+
         // 跳过不可见的元素
-        if (style.display === 'none' || style.visibility === 'hidden') {
+        if (style.display === "none" || style.visibility === "hidden") {
           continue
         }
 
         // 检查定位属性
         const position = style.position
-        if (position !== 'fixed' && position !== 'absolute') {
+        if (position !== "fixed" && position !== "absolute") {
           continue
         }
 
         // 检查 z-index（弹窗通常有较高的 z-index，至少 >= 1000）
         const zIndex = parseInt(style.zIndex, 10)
-        
+
         // 如果 z-index 小于 1000，需要额外的标识来确认是弹窗
         if (isNaN(zIndex) || zIndex < 1000) {
           // 检查是否有 role="dialog" 或其他弹窗标识
-          const hasDialogRole = htmlElement.getAttribute('role') === 'dialog'
-          
+          const hasDialogRole = htmlElement.getAttribute("role") === "dialog"
+
           // 安全地获取 className（可能是字符串或 DOMTokenList）
           const className = htmlElement.className
-          const classNameStr = typeof className === 'string' 
-            ? className 
-            : (className?.toString() || '')
-          
-          const hasModalClass = 
-            classNameStr.includes('modal') ||
-            classNameStr.includes('dialog') ||
-            classNameStr.includes('popup') ||
-            classNameStr.includes('overlay')
-          
+          let classNameStr = ""
+          if (typeof className === "string") {
+            classNameStr = className
+          } else if (
+            className &&
+            typeof className === "object" &&
+            "toString" in className
+          ) {
+            classNameStr = String(className)
+          }
+
+          const hasModalClass =
+            classNameStr.includes("modal") ||
+            classNameStr.includes("dialog") ||
+            classNameStr.includes("popup") ||
+            classNameStr.includes("overlay")
+
           // 如果没有弹窗标识，且 z-index 小于 1000，跳过
           if (!hasDialogRole && !hasModalClass) {
             continue
@@ -72,7 +81,9 @@ function findActiveModal(): HTMLElement | null {
         }
 
         // 检查元素是否包含表单元素（弹窗通常包含表单）
-        const hasFormElements = htmlElement.querySelector('input, textarea, select')
+        const hasFormElements = htmlElement.querySelector(
+          "input, textarea, select"
+        )
         if (!hasFormElements) {
           // 如果没有表单元素，可能不是我们要找的弹窗，跳过
           continue
@@ -102,12 +113,12 @@ function findActiveModal(): HTMLElement | null {
 
     // 按 z-index 降序排序，返回 z-index 最高的弹窗
     candidateModals.sort((a, b) => b.zIndex - a.zIndex)
-    
+
     // 返回 z-index 最高的弹窗
     return candidateModals[0].element
   } catch (error) {
     // 如果检测过程出错，返回 null，这样会在整个页面搜索表单
-    console.warn('弹窗检测出错:', error)
+    console.warn("弹窗检测出错:", error)
     return null
   }
 }
@@ -122,24 +133,24 @@ export function getFormFields(): FormField[] {
 
   // 查找活动的弹窗
   const activeModal = findActiveModal()
-  
+
   // 确定搜索范围：如果有弹窗，只在弹窗内搜索；否则在整个页面搜索
   const searchRoot = activeModal || document
 
   // 获取搜索范围内的所有表单元素
   const formElements = searchRoot.querySelectorAll(
-    'input, textarea, select',
+    "input, textarea, select"
   ) as NodeListOf<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
 
   formElements.forEach((element) => {
     // 跳过隐藏元素和按钮（textarea没有type属性，需要特殊处理）
-    if (element.tagName !== 'TEXTAREA' && element.tagName !== 'SELECT') {
+    if (element.tagName !== "TEXTAREA" && element.tagName !== "SELECT") {
       const inputElement = element as HTMLInputElement
       if (
-        inputElement.type === 'hidden' ||
-        inputElement.type === 'submit' ||
-        inputElement.type === 'button' ||
-        inputElement.type === 'reset'
+        inputElement.type === "hidden" ||
+        inputElement.type === "submit" ||
+        inputElement.type === "button" ||
+        inputElement.type === "reset"
       ) {
         return
       }
@@ -151,7 +162,7 @@ export function getFormFields(): FormField[] {
     }
 
     // 获取label - 只通过label[for]属性关联，简化逻辑
-    let label = ''
+    let label = ""
     const id = element.id
     const name = element.name
 
@@ -161,41 +172,53 @@ export function getFormFields(): FormField[] {
       const labelElement = searchRoot.querySelector(`label[for="${id}"]`)
       if (labelElement) {
         // 只获取label元素的文本内容，清理掉可能的图标、按钮等子元素
-        label = labelElement.textContent?.trim() || ''
+        label = labelElement.textContent?.trim() || ""
         // 移除可能的必填标记（如*号）
-        label = label.replace(/\s*\*+\s*/, '').trim()
+        label = label.replace(/\s*\*+\s*/, "").trim()
       }
     }
 
     // 如果通过for属性没找到label，使用placeholder或name作为label
     if (!label) {
+      // HTMLSelectElement 没有 placeholder 属性，需要类型判断
+      const placeholder =
+        element.tagName === "SELECT"
+          ? undefined
+          : (element as HTMLInputElement | HTMLTextAreaElement).placeholder
       label =
-        element.placeholder ||
+        placeholder ||
         element.name ||
         element.id ||
         element.type ||
-        '未命名字段'
+        "未命名字段"
     }
 
     // 获取字段类型
-    let fieldType = element.type || 'text'
-    if (element.tagName === 'TEXTAREA') {
-      fieldType = 'textarea'
-    } else if (element.tagName === 'SELECT') {
-      fieldType = 'select'
+    let fieldType = element.type || "text"
+    if (element.tagName === "TEXTAREA") {
+      fieldType = "textarea"
+    } else if (element.tagName === "SELECT") {
+      fieldType = "select"
     }
 
     // 检查是否必填
     const required =
-      element.hasAttribute('required') ||
-      element.getAttribute('aria-required') === 'true'
+      element.hasAttribute("required") ||
+      element.getAttribute("aria-required") === "true"
+
+    // HTMLSelectElement 没有 placeholder 属性，需要类型判断
+    const placeholder =
+      element.tagName === "SELECT"
+        ? undefined
+        : (element as HTMLInputElement | HTMLTextAreaElement).placeholder ||
+          undefined
 
     fields.push({
       label: label,
       type: fieldType,
       name: name || undefined,
       id: id || undefined,
-      placeholder: element.placeholder || undefined,
+      placeholder: placeholder,
       required: required,
     })
   })
@@ -211,26 +234,26 @@ export function getFormFields(): FormField[] {
 export function fillFormData(data: Record<string, any>): void {
   // 查找活动的弹窗
   const activeModal = findActiveModal()
-  
+
   // 确定搜索范围：如果有弹窗，只在弹窗内搜索；否则在整个页面搜索
   const searchRoot = activeModal || document
 
   // 获取搜索范围内的所有表单元素
   const formElements = searchRoot.querySelectorAll(
-    'input, textarea, select',
+    "input, textarea, select"
   ) as NodeListOf<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
 
   // 创建一个映射，用于通过label查找字段
   const labelToFieldMap: Record<string, string> = {}
   formElements.forEach((element) => {
     // 跳过隐藏元素和按钮（textarea没有type属性，需要特殊处理）
-    if (element.tagName !== 'TEXTAREA' && element.tagName !== 'SELECT') {
+    if (element.tagName !== "TEXTAREA" && element.tagName !== "SELECT") {
       const inputElement = element as HTMLInputElement
       if (
-        inputElement.type === 'hidden' ||
-        inputElement.type === 'submit' ||
-        inputElement.type === 'button' ||
-        inputElement.type === 'reset'
+        inputElement.type === "hidden" ||
+        inputElement.type === "submit" ||
+        inputElement.type === "button" ||
+        inputElement.type === "reset"
       ) {
         return
       }
@@ -242,7 +265,7 @@ export function fillFormData(data: Record<string, any>): void {
     }
 
     // 获取字段的label - 只通过label[for]属性关联
-    let label = ''
+    let label = ""
     const id = element.id
     const name = element.name
 
@@ -250,20 +273,24 @@ export function fillFormData(data: Record<string, any>): void {
     if (id) {
       const labelElement = searchRoot.querySelector(`label[for="${id}"]`)
       if (labelElement) {
-        label = labelElement.textContent?.trim() || ''
+        label = labelElement.textContent?.trim() || ""
         // 移除可能的必填标记（如*号）
-        label = label.replace(/\s*\*+\s*/, '').trim()
+        label = label.replace(/\s*\*+\s*/, "").trim()
       }
     }
 
-    // 如果没找到label，使用placeholder
+    // 如果没找到label，使用placeholder（HTMLSelectElement 没有 placeholder 属性）
     if (!label) {
-      label = element.placeholder || ''
+      const placeholder =
+        element.tagName === "SELECT"
+          ? undefined
+          : (element as HTMLInputElement | HTMLTextAreaElement).placeholder
+      label = placeholder || ""
     }
 
     // 建立label到字段标识的映射
     if (label) {
-      const fieldKey = name || id || ''
+      const fieldKey = name || id || ""
       if (fieldKey) {
         labelToFieldMap[label] = fieldKey
       }
@@ -272,13 +299,13 @@ export function fillFormData(data: Record<string, any>): void {
 
   formElements.forEach((element) => {
     // 跳过隐藏元素和按钮（textarea没有type属性，需要特殊处理）
-    if (element.tagName !== 'TEXTAREA' && element.tagName !== 'SELECT') {
+    if (element.tagName !== "TEXTAREA" && element.tagName !== "SELECT") {
       const inputElement = element as HTMLInputElement
       if (
-        inputElement.type === 'hidden' ||
-        inputElement.type === 'submit' ||
-        inputElement.type === 'button' ||
-        inputElement.type === 'reset'
+        inputElement.type === "hidden" ||
+        inputElement.type === "submit" ||
+        inputElement.type === "button" ||
+        inputElement.type === "reset"
       ) {
         return
       }
@@ -301,17 +328,24 @@ export function fillFormData(data: Record<string, any>): void {
     // 如果都没匹配到，尝试通过label匹配
     else {
       // 获取当前字段的label - 只通过label[for]属性关联（在搜索范围内查找）
-      let label = ''
+      let label = ""
       if (element.id) {
-        const labelElement = searchRoot.querySelector(`label[for="${element.id}"]`)
+        const labelElement = searchRoot.querySelector(
+          `label[for="${element.id}"]`
+        )
         if (labelElement) {
-          label = labelElement.textContent?.trim() || ''
+          label = labelElement.textContent?.trim() || ""
           // 移除可能的必填标记（如*号）
-          label = label.replace(/\s*\*+\s*/, '').trim()
+          label = label.replace(/\s*\*+\s*/, "").trim()
         }
       }
       if (!label) {
-        label = element.placeholder || ''
+        // HTMLSelectElement 没有 placeholder 属性，需要类型判断
+        const placeholder =
+          element.tagName === "SELECT"
+            ? undefined
+            : (element as HTMLInputElement | HTMLTextAreaElement).placeholder
+        label = placeholder || ""
       }
 
       // 通过label查找对应的数据key
@@ -330,120 +364,144 @@ export function fillFormData(data: Record<string, any>): void {
 
     if (value !== null && value !== undefined) {
       // 根据元素类型填充值
-      if (element.tagName === 'SELECT') {
+      if (element.tagName === "SELECT") {
         const selectElement = element as HTMLSelectElement
         // 尝试通过value匹配
         const option = Array.from(selectElement.options).find(
-          (opt) => opt.value === String(value),
+          (opt) => opt.value === String(value)
         )
         if (option) {
           selectElement.value = option.value
         } else {
           // 如果value不匹配，尝试通过文本匹配
           const optionByText = Array.from(selectElement.options).find(
-            (opt) => opt.text === String(value),
+            (opt) => opt.text === String(value)
           )
           if (optionByText) {
             selectElement.value = optionByText.value
           }
         }
         // 触发change事件
-        const changeEvent = new Event('change', { bubbles: true })
+        const changeEvent = new Event("change", { bubbles: true })
         selectElement.dispatchEvent(changeEvent)
-      } else if (element.tagName === 'TEXTAREA') {
+      } else if (element.tagName === "TEXTAREA") {
         // textarea元素
         const textareaElement = element as HTMLTextAreaElement
         textareaElement.value = String(value)
         // 触发事件
-        const inputEvent = new Event('input', { bubbles: true })
-        const changeEvent = new Event('change', { bubbles: true })
+        const inputEvent = new Event("input", { bubbles: true })
+        const changeEvent = new Event("change", { bubbles: true })
         textareaElement.dispatchEvent(inputEvent)
         textareaElement.dispatchEvent(changeEvent)
-      } else if (element.tagName === 'INPUT') {
+      } else if (element.tagName === "INPUT") {
         const inputElement = element as HTMLInputElement
-        
+
         // 跳过文件输入框（无法通过脚本设置值）
-        if (inputElement.type === 'file') {
+        if (inputElement.type === "file") {
           return
         }
-        
-        if (inputElement.type === 'checkbox') {
+
+        if (inputElement.type === "checkbox") {
           inputElement.checked = Boolean(value)
-          const changeEvent = new Event('change', { bubbles: true })
+          const changeEvent = new Event("change", { bubbles: true })
           inputElement.dispatchEvent(changeEvent)
-        } else if (inputElement.type === 'radio') {
+        } else if (inputElement.type === "radio") {
           if (inputElement.value === String(value)) {
             inputElement.checked = true
-            const changeEvent = new Event('change', { bubbles: true })
+            const changeEvent = new Event("change", { bubbles: true })
             inputElement.dispatchEvent(changeEvent)
           }
         } else {
           // 检查是否是 Ant Design 日期选择器
-          const isAntDatePicker = inputElement.closest('.ant-picker') || 
-                                 inputElement.closest('.ant-calendar-picker') ||
-                                 inputElement.classList.contains('ant-picker-input') ||
-                                 inputElement.parentElement?.classList.contains('ant-picker-input')
-          
+          const isAntDatePicker =
+            inputElement.closest(".ant-picker") ||
+            inputElement.closest(".ant-calendar-picker") ||
+            inputElement.classList.contains("ant-picker-input") ||
+            inputElement.parentElement?.classList.contains("ant-picker-input")
+
           // 检查是否是 Ant Design Select 组件（不是原生select）
-          const isAntSelect = inputElement.closest('.ant-select') && 
-                             !inputElement.closest('select')
-          
+          const isAntSelect =
+            inputElement.closest(".ant-select") &&
+            !inputElement.closest("select")
+
           if (isAntDatePicker) {
             // Ant Design 日期选择器处理
             try {
               // 设置input的值
               inputElement.value = String(value)
-              
+
               // 触发原生事件
-              const inputEvent = new Event('input', { bubbles: true, cancelable: true })
-              const changeEvent = new Event('change', { bubbles: true, cancelable: true })
+              const inputEvent = new Event("input", {
+                bubbles: true,
+                cancelable: true,
+              })
+              const changeEvent = new Event("change", {
+                bubbles: true,
+                cancelable: true,
+              })
               inputElement.dispatchEvent(inputEvent)
               inputElement.dispatchEvent(changeEvent)
-              
+
               // 触发 React 合成事件（Ant Design 使用 React）
-              const reactInputEvent = new Event('input', { bubbles: true, cancelable: true })
-              Object.defineProperty(reactInputEvent, 'target', { value: inputElement, enumerable: true })
+              const reactInputEvent = new Event("input", {
+                bubbles: true,
+                cancelable: true,
+              })
+              Object.defineProperty(reactInputEvent, "target", {
+                value: inputElement,
+                enumerable: true,
+              })
               inputElement.dispatchEvent(reactInputEvent)
-              
+
               // 尝试通过 focus/blur 触发 Ant Design 的更新
               inputElement.focus()
-              
+
               // 延迟触发 blur，确保值已设置
               setTimeout(() => {
                 inputElement.blur()
                 // 再次触发 change 事件
-                const finalChangeEvent = new Event('change', { bubbles: true, cancelable: true })
+                const finalChangeEvent = new Event("change", {
+                  bubbles: true,
+                  cancelable: true,
+                })
                 inputElement.dispatchEvent(finalChangeEvent)
               }, 50)
             } catch (error) {
-              console.warn('填充日期选择器失败:', error)
+              console.warn("填充日期选择器失败:", error)
             }
           } else if (isAntSelect) {
             // Ant Design Select 组件处理（非原生select）
             try {
-              const selectContainer = inputElement.closest('.ant-select')
+              const selectContainer = inputElement.closest(".ant-select")
               if (selectContainer) {
                 // 先尝试通过点击下拉框来打开选项列表
-                const selectSelector = selectContainer.querySelector('.ant-select-selector') as HTMLElement
+                const selectSelector = selectContainer.querySelector(
+                  ".ant-select-selector"
+                ) as HTMLElement
                 if (selectSelector) {
                   // 点击打开下拉框
                   selectSelector.click()
-                  
+
                   // 延迟查找并选择选项
                   setTimeout(() => {
                     // 查找所有选项
-                    const options = document.querySelectorAll('.ant-select-item-option')
+                    const options = document.querySelectorAll(
+                      ".ant-select-item-option"
+                    )
                     let found = false
-                    
+
                     for (const option of options) {
-                      const optionText = option.textContent?.trim() || ''
-                      const optionValue = option.getAttribute('title') || optionText
-                      
+                      const optionText = option.textContent?.trim() || ""
+                      const optionValue =
+                        option.getAttribute("title") || optionText
+
                       // 尝试匹配值或文本
-                      if (optionText === String(value) || 
-                          optionValue === String(value) ||
-                          optionText.includes(String(value)) ||
-                          String(value).includes(optionText)) {
+                      if (
+                        optionText === String(value) ||
+                        optionValue === String(value) ||
+                        optionText.includes(String(value)) ||
+                        String(value).includes(optionText)
+                      ) {
                         // 点击选项
                         const optionElement = option as HTMLElement
                         optionElement.click()
@@ -451,7 +509,7 @@ export function fillFormData(data: Record<string, any>): void {
                         break
                       }
                     }
-                    
+
                     // 如果没找到匹配的选项，关闭下拉框
                     if (!found) {
                       // 点击外部区域关闭下拉框
@@ -461,21 +519,33 @@ export function fillFormData(data: Record<string, any>): void {
                 } else {
                   // 如果没有选择器，直接设置input的值
                   inputElement.value = String(value)
-                  const inputEvent = new Event('input', { bubbles: true, cancelable: true })
-                  const changeEvent = new Event('change', { bubbles: true, cancelable: true })
+                  const inputEvent = new Event("input", {
+                    bubbles: true,
+                    cancelable: true,
+                  })
+                  const changeEvent = new Event("change", {
+                    bubbles: true,
+                    cancelable: true,
+                  })
                   inputElement.dispatchEvent(inputEvent)
                   inputElement.dispatchEvent(changeEvent)
                 }
               }
             } catch (error) {
-              console.warn('填充 Ant Design Select 失败:', error)
+              console.warn("填充 Ant Design Select 失败:", error)
             }
           } else {
             // 普通input（text, email, number, date等）
             inputElement.value = String(value)
             // 触发input和change事件
-            const inputEvent = new Event('input', { bubbles: true, cancelable: true })
-            const changeEvent = new Event('change', { bubbles: true, cancelable: true })
+            const inputEvent = new Event("input", {
+              bubbles: true,
+              cancelable: true,
+            })
+            const changeEvent = new Event("change", {
+              bubbles: true,
+              cancelable: true,
+            })
             inputElement.dispatchEvent(inputEvent)
             inputElement.dispatchEvent(changeEvent)
           }
@@ -494,8 +564,7 @@ export function hasFormElements(): boolean {
   // 简单检查整个页面是否有表单元素
   // 不进行弹窗检测，因为只有在用户点击按钮时才需要判断弹窗
   const formElements = document.querySelectorAll(
-    'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), textarea, select',
+    'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), textarea, select'
   )
   return formElements.length > 0
 }
-
