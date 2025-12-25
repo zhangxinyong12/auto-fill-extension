@@ -44,10 +44,30 @@ async function handleGenerateFormData(fields: any[]) {
       throw new Error("请先配置APIPassword")
     }
 
-    // 构建提示词
-    const prompt = buildPrompt(fields)
-    console.log("构建的提示词:", prompt)
+    // 获取自定义提示词
+    const customSystemPrompt = await storage.get<string>("customSystemPrompt")
+    const customUserPrompt = await storage.get<string>("customUserPrompt")
+
+    // 构建提示词（如果使用自定义用户提示词，需要替换 {fields} 占位符）
+    let userPrompt: string
+    if (customUserPrompt && customUserPrompt.trim()) {
+      // 使用自定义用户提示词，替换 {fields} 占位符
+      const defaultPrompt = buildPrompt(fields)
+      // 如果自定义提示词中包含 {fields}，则替换；否则直接使用自定义提示词
+      userPrompt = customUserPrompt.includes("{fields}")
+        ? customUserPrompt.replace("{fields}", defaultPrompt)
+        : customUserPrompt
+    } else {
+      // 使用默认提示词
+      userPrompt = buildPrompt(fields)
+    }
+
+    console.log("构建的提示词:", userPrompt)
     console.log("表单字段信息:", fields)
+
+    // 默认系统提示词
+    const defaultSystemPrompt =
+      "你是一个专业的表单数据生成助手。你必须严格按照JSON格式返回结果，不要使用markdown代码块包裹。\n\n【核心要求 - 违反将导致失败】\n1. 根据表单字段的label（字段名称）理解字段含义，然后生成对应的真实模拟数据\n2. 绝对禁止返回label文本本身，必须生成真实的模拟数据\n3. 绝对禁止返回placeholder文本，必须生成真实的模拟数据\n4. 绝对禁止返回任何说明性文字，如'随机生成的中文姓名'、'随机日期（例如：2023-06-20）'、'请输入XXX'等\n5. 绝对禁止返回示例性文字，如'例如：XXX'、'随机XXX'等\n6. 必须直接返回真实数据，例如：如果label是'客户简称'，必须返回'北京科技'，绝对不能返回'客户简称'、'请输入客户简称'、'随机生成的公司简称'等\n7. 如果label是'姓名'，必须返回'李明'，绝对不能返回'姓名'、'请输入姓名'、'随机生成的中文姓名'等\n8. 如果label是'日期'，必须返回'2023-06-20'，绝对不能返回'随机日期（例如：2023-06-20）'、'请输入日期'等\n9. 如果字段是bankName（开户银行），必须返回'中国工商银行'、'中国建设银行'等真实银行名称，绝对不能返回'请输入开户银行'、'开户银行'等placeholder或label文本\n10. 如果字段是accountNumber（银行账号），必须返回16-19位数字的银行账号（如：'6222021234567890123'），绝对不能返回手机号，也不能返回'请输入银行账号'等placeholder文本\n11. 如果字段是taxNumber（税号），必须返回18位统一社会信用代码或15位纳税人识别号（如：'91110000123456789X'），绝对不能返回'请输入税号'、'税号'等placeholder或label文本\n12. 所有返回的值都必须是真实的模拟数据，不能是字段名称、提示文本、说明性文字或示例性文字"
 
     // 构建请求体
     const requestBody = {
@@ -56,11 +76,13 @@ async function handleGenerateFormData(fields: any[]) {
         {
           role: "system",
           content:
-            "你是一个专业的表单数据生成助手。你必须严格按照JSON格式返回结果，不要使用markdown代码块包裹。\n\n【核心要求 - 违反将导致失败】\n1. 根据表单字段的label（字段名称）理解字段含义，然后生成对应的真实模拟数据\n2. 绝对禁止返回label文本本身，必须生成真实的模拟数据\n3. 绝对禁止返回placeholder文本，必须生成真实的模拟数据\n4. 绝对禁止返回任何说明性文字，如'随机生成的中文姓名'、'随机日期（例如：2023-06-20）'、'请输入XXX'等\n5. 绝对禁止返回示例性文字，如'例如：XXX'、'随机XXX'等\n6. 必须直接返回真实数据，例如：如果label是'客户简称'，必须返回'北京科技'，绝对不能返回'客户简称'、'请输入客户简称'、'随机生成的公司简称'等\n7. 如果label是'姓名'，必须返回'李明'，绝对不能返回'姓名'、'请输入姓名'、'随机生成的中文姓名'等\n8. 如果label是'日期'，必须返回'2023-06-20'，绝对不能返回'随机日期（例如：2023-06-20）'、'请输入日期'等\n9. 如果字段是bankName（开户银行），必须返回'中国工商银行'、'中国建设银行'等真实银行名称，绝对不能返回'请输入开户银行'、'开户银行'等placeholder或label文本\n10. 如果字段是accountNumber（银行账号），必须返回16-19位数字的银行账号（如：'6222021234567890123'），绝对不能返回手机号，也不能返回'请输入银行账号'等placeholder文本\n11. 如果字段是taxNumber（税号），必须返回18位统一社会信用代码或15位纳税人识别号（如：'91110000123456789X'），绝对不能返回'请输入税号'、'税号'等placeholder或label文本\n12. 所有返回的值都必须是真实的模拟数据，不能是字段名称、提示文本、说明性文字或示例性文字",
+            customSystemPrompt && customSystemPrompt.trim()
+              ? customSystemPrompt.trim()
+              : defaultSystemPrompt,
         },
         {
           role: "user",
-          content: prompt,
+          content: userPrompt,
         },
       ],
       max_tokens: 4096,

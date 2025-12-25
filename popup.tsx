@@ -257,7 +257,7 @@ function IndexPopup() {
       </div>
 
       {/* 操作按钮区域 */}
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         {/* 保存按钮 */}
         <button
           onClick={handleSave}
@@ -273,6 +273,7 @@ function IndexPopup() {
             fontWeight: 500,
             cursor: apiPassword ? 'pointer' : 'not-allowed',
             transition: 'background-color 0.3s',
+            minWidth: '120px',
           }}
           onMouseEnter={(e) => {
             if (apiPassword) {
@@ -313,6 +314,48 @@ function IndexPopup() {
         >
           📷 查看示例
         </button>
+      </div>
+
+      {/* 自定义提示词按钮 */}
+      <div style={{ marginBottom: '20px' }}>
+        <button
+          onClick={() => chrome.runtime.openOptionsPage()}
+          style={{
+            width: '100%',
+            padding: '10px 16px',
+            backgroundColor: '#722ed1',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'background-color 0.3s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#9254de'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#722ed1'
+          }}
+          title="打开选项页面，配置自定义提示词"
+        >
+          ✏️ 自定义提示词
+        </button>
+        <p
+          style={{
+            fontSize: '11px',
+            color: '#8c8c8c',
+            marginTop: '4px',
+            textAlign: 'center',
+          }}
+        >
+          点击打开选项页面，可以自定义 AI 生成数据的提示词
+        </p>
       </div>
 
       {/* 插件启用/禁用控制区域 */}
