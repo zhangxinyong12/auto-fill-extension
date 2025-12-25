@@ -36,7 +36,7 @@ function AutoFillButton() {
   const storage = new Storage()
   const buttonContainerRef = useRef<HTMLDivElement>(null)
 
-  // 检查插件是否被禁用
+  // 检查插件是否被启用（白名单模式）
   useEffect(() => {
     const checkEnabled = async () => {
       try {
@@ -47,20 +47,42 @@ function AutoFillButton() {
           return
         }
 
-        // 检查当前域名是否被禁用
+        // 获取当前域名
         const currentDomain = window.location.hostname
-        const disabledDomains = await storage.get<string[]>("disabledDomains")
-        if (disabledDomains && disabledDomains.includes(currentDomain)) {
-          setIsEnabled(false)
+        const currentHost = window.location.host // 包含端口号
+
+        // 默认允许的域名（localhost 和 127.0.0.1）
+        const defaultAllowedDomains = ["localhost", "127.0.0.1"]
+
+        // 检查是否为默认允许的域名
+        const isDefaultAllowed = defaultAllowedDomains.some(
+          (domain) =>
+            currentDomain === domain || currentDomain.startsWith(domain + ":")
+        )
+
+        // 如果已经是默认允许的域名，直接启用
+        if (isDefaultAllowed) {
+          setIsEnabled(true)
           return
         }
 
-        // 如果都没有禁用，则启用
-        setIsEnabled(true)
+        // 检查当前域名是否在白名单中
+        const allowedDomains =
+          (await storage.get<string[]>("allowedDomains")) || []
+        if (
+          allowedDomains.includes(currentDomain) ||
+          allowedDomains.includes(currentHost)
+        ) {
+          setIsEnabled(true)
+          return
+        }
+
+        // 如果不在白名单中，则禁用
+        setIsEnabled(false)
       } catch (error) {
         console.error("检查插件启用状态失败:", error)
-        // 出错时默认启用
-        setIsEnabled(true)
+        // 出错时默认禁用（安全起见）
+        setIsEnabled(false)
       }
     }
 
@@ -74,8 +96,8 @@ function AutoFillButton() {
     ) => {
       // 只监听local存储区域的变化
       if (areaName === "local") {
-        // 如果pluginEnabled或disabledDomains发生变化，重新检查
-        if (changes.pluginEnabled || changes.disabledDomains) {
+        // 如果pluginEnabled或allowedDomains发生变化，重新检查
+        if (changes.pluginEnabled || changes.allowedDomains) {
           checkEnabled()
         }
       }

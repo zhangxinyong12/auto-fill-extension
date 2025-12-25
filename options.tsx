@@ -14,6 +14,8 @@ function IndexOptions() {
   const [apiPassword, setApiPassword] = useState('')
   const [model, setModel] = useState('lite')
   const [saved, setSaved] = useState(false)
+  const [allowedDomains, setAllowedDomains] = useState<string[]>([])
+  const [newDomain, setNewDomain] = useState('')
   const storage = new Storage()
 
   // 加载已保存的配置
@@ -21,11 +23,15 @@ function IndexOptions() {
     const loadConfig = async () => {
       const savedPassword = await storage.get<string>('sparkApiPassword')
       const savedModel = await storage.get<string>('sparkModel')
+      const savedAllowedDomains = await storage.get<string[]>('allowedDomains')
       if (savedPassword) {
         setApiPassword(savedPassword)
       }
       if (savedModel) {
         setModel(savedModel)
+      }
+      if (savedAllowedDomains) {
+        setAllowedDomains(savedAllowedDomains)
       }
     }
     loadConfig()
@@ -45,6 +51,69 @@ function IndexOptions() {
     } catch (error) {
       console.error('保存配置失败:', error)
       alert('保存配置失败，请重试')
+    }
+  }
+
+  /**
+   * 添加域名到白名单
+   */
+  const handleAddDomain = async () => {
+    if (!newDomain.trim()) {
+      alert('请输入域名')
+      return
+    }
+
+    // 验证域名格式（简单验证）
+    const domainPattern = /^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$|^localhost$|^127\.0\.0\.1$/
+    if (!domainPattern.test(newDomain.trim())) {
+      alert('请输入有效的域名（例如：example.com）')
+      return
+    }
+
+    // 默认允许的域名不需要添加
+    const defaultAllowedDomains = ["localhost", "127.0.0.1"]
+    if (defaultAllowedDomains.some(d => newDomain.trim() === d || newDomain.trim().startsWith(d + ":"))) {
+      alert('localhost 和 127.0.0.1 是默认允许的域名，无需手动添加')
+      setNewDomain('')
+      return
+    }
+
+    // 检查是否已存在
+    if (allowedDomains.includes(newDomain.trim())) {
+      alert('该域名已在白名单中')
+      setNewDomain('')
+      return
+    }
+
+    try {
+      const newAllowedDomains = [...allowedDomains, newDomain.trim()]
+      await storage.set('allowedDomains', newAllowedDomains)
+      setAllowedDomains(newAllowedDomains)
+      setNewDomain('')
+    } catch (error) {
+      console.error('添加域名失败:', error)
+      alert('添加域名失败，请重试')
+    }
+  }
+
+  /**
+   * 从白名单移除域名
+   */
+  const handleRemoveDomain = async (domain: string) => {
+    // 默认允许的域名不能移除
+    const defaultAllowedDomains = ["localhost", "127.0.0.1"]
+    if (defaultAllowedDomains.some(d => domain === d || domain.startsWith(d + ":"))) {
+      alert('localhost 和 127.0.0.1 是默认允许的域名，不能移除')
+      return
+    }
+
+    try {
+      const newAllowedDomains = allowedDomains.filter(d => d !== domain)
+      await storage.set('allowedDomains', newAllowedDomains)
+      setAllowedDomains(newAllowedDomains)
+    } catch (error) {
+      console.error('移除域名失败:', error)
+      alert('移除域名失败，请重试')
     }
   }
 
@@ -276,6 +345,245 @@ function IndexOptions() {
         >
           {saved ? '保存成功！' : '保存配置'}
         </button>
+
+        {/* 域名白名单管理区域 */}
+        <div
+          style={{
+            marginTop: '32px',
+            padding: '20px',
+            backgroundColor: '#f0f5ff',
+            borderRadius: '8px',
+            border: '1px solid #adc6ff',
+          }}
+        >
+          <h3
+            style={{
+              fontSize: '16px',
+              fontWeight: 600,
+              marginBottom: '12px',
+              color: '#262626',
+            }}
+          >
+            🌐 域名白名单管理
+          </h3>
+          <p
+            style={{
+              fontSize: '13px',
+              color: '#595959',
+              marginBottom: '16px',
+              lineHeight: '1.6',
+            }}
+          >
+            插件默认只在 <strong>localhost</strong> 和 <strong>127.0.0.1</strong> 上运行。
+            <br />
+            其他网站需要添加到白名单后才能使用插件功能。
+          </p>
+
+          {/* 默认允许的域名 */}
+          <div
+            style={{
+              marginBottom: '16px',
+              padding: '12px',
+              backgroundColor: '#fff',
+              borderRadius: '4px',
+              border: '1px solid #d9d9d9',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '13px',
+                fontWeight: 500,
+                color: '#262626',
+                marginBottom: '8px',
+              }}
+            >
+              默认允许的域名（无需添加）：
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  padding: '4px 12px',
+                  backgroundColor: '#f6ffed',
+                  border: '1px solid #b7eb8f',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  color: '#52c41a',
+                  fontWeight: 500,
+                }}
+              >
+                localhost
+              </span>
+              <span
+                style={{
+                  padding: '4px 12px',
+                  backgroundColor: '#f6ffed',
+                  border: '1px solid #b7eb8f',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  color: '#52c41a',
+                  fontWeight: 500,
+                }}
+              >
+                127.0.0.1
+              </span>
+            </div>
+          </div>
+
+          {/* 添加域名输入框 */}
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: 500,
+                marginBottom: '8px',
+                color: '#262626',
+              }}
+            >
+              添加新域名到白名单
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={newDomain}
+                onChange={(e) => setNewDomain(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAddDomain()
+                  }
+                }}
+                placeholder="例如：example.com"
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <button
+                onClick={handleAddDomain}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#52c41a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'background-color 0.3s',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#73d13d'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#52c41a'
+                }}
+              >
+                添加
+              </button>
+            </div>
+            <p
+              style={{
+                fontSize: '11px',
+                color: '#8c8c8c',
+                marginTop: '4px',
+              }}
+            >
+              输入域名后按 Enter 或点击"添加"按钮
+            </p>
+          </div>
+
+          {/* 白名单域名列表 */}
+          <div>
+            <div
+              style={{
+                fontSize: '13px',
+                fontWeight: 500,
+                color: '#262626',
+                marginBottom: '8px',
+              }}
+            >
+              已添加到白名单的域名（{allowedDomains.length} 个）：
+            </div>
+            {allowedDomains.length === 0 ? (
+              <div
+                style={{
+                  padding: '16px',
+                  backgroundColor: '#fff',
+                  borderRadius: '4px',
+                  border: '1px solid #d9d9d9',
+                  textAlign: 'center',
+                  color: '#8c8c8c',
+                  fontSize: '12px',
+                }}
+              >
+                暂无已添加的域名
+              </div>
+            ) : (
+              <div
+                style={{
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  backgroundColor: '#fff',
+                  borderRadius: '4px',
+                  border: '1px solid #d9d9d9',
+                  padding: '8px',
+                }}
+              >
+                {allowedDomains.map((domain) => (
+                  <div
+                    key={domain}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 12px',
+                      marginBottom: '4px',
+                      backgroundColor: '#fafafa',
+                      borderRadius: '4px',
+                      border: '1px solid #e8e8e8',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        color: '#262626',
+                        flex: 1,
+                      }}
+                    >
+                      {domain}
+                    </span>
+                    <button
+                      onClick={() => handleRemoveDomain(domain)}
+                      style={{
+                        padding: '4px 12px',
+                        backgroundColor: '#ff4d4f',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.3s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#ff7875'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#ff4d4f'
+                      }}
+                    >
+                      移除
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         <div
           style={{

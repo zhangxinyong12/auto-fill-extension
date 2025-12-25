@@ -32,8 +32,10 @@
     "name": "表单自动填充助手",
     "description": "自动识别页面表单并生成模拟数据填充，方便测试使用",
     "host_permissions": [
-      "http://*/*",
-      "https://*/*"
+      "http://localhost/*",
+      "http://127.0.0.1/*",
+      "https://localhost/*",
+      "https://127.0.0.1/*"
     ],
     "permissions": [
       "storage",

@@ -17,8 +17,8 @@ function IndexPopup() {
   const [pluginEnabled, setPluginEnabled] = useState(true)
   // 当前网站域名
   const [currentDomain, setCurrentDomain] = useState<string>('')
-  // 当前网站是否被禁用
-  const [currentDomainDisabled, setCurrentDomainDisabled] = useState(false)
+  // 当前网站是否在白名单中
+  const [currentDomainAllowed, setCurrentDomainAllowed] = useState(false)
   
   // 创建存储实例，用于读取和保存配置
   const storage = new Storage()
@@ -49,12 +49,19 @@ function IndexPopup() {
           const domain = url.hostname
           setCurrentDomain(domain)
 
-          // 检查当前域名是否被禁用
-          const disabledDomains = await storage.get<string[]>('disabledDomains')
-          if (disabledDomains && disabledDomains.includes(domain)) {
-            setCurrentDomainDisabled(true)
+          // 默认允许的域名（localhost 和 127.0.0.1）
+          const defaultAllowedDomains = ["localhost", "127.0.0.1"]
+          const isDefaultAllowed = defaultAllowedDomains.some(d => 
+            domain === d || domain.startsWith(d + ":")
+          )
+
+          // 如果是默认允许的域名，直接设置为已允许
+          if (isDefaultAllowed) {
+            setCurrentDomainAllowed(true)
           } else {
-            setCurrentDomainDisabled(false)
+            // 检查当前域名是否在白名单中
+            const allowedDomains = await storage.get<string[]>('allowedDomains') || []
+            setCurrentDomainAllowed(allowedDomains.includes(domain))
           }
         }
       } catch (error) {
@@ -111,7 +118,8 @@ function IndexPopup() {
   }
 
   /**
-   * 切换当前网站的启用/禁用状态
+   * 切换当前网站的白名单状态
+   * 将当前网站添加到白名单或从白名单移除
    */
   const handleToggleCurrentDomain = async () => {
     try {
@@ -120,23 +128,34 @@ function IndexPopup() {
         return
       }
 
-      const disabledDomains = await storage.get<string[]>('disabledDomains') || []
-      const isCurrentlyDisabled = disabledDomains.includes(currentDomain)
+      // 默认允许的域名（localhost 和 127.0.0.1）不能从白名单移除
+      const defaultAllowedDomains = ["localhost", "127.0.0.1"]
+      const isDefaultAllowed = defaultAllowedDomains.some(d => 
+        currentDomain === d || currentDomain.startsWith(d + ":")
+      )
 
-      let newDisabledDomains: string[]
-      if (isCurrentlyDisabled) {
-        // 如果当前已禁用，则从列表中移除（启用）
-        newDisabledDomains = disabledDomains.filter(d => d !== currentDomain)
-        setCurrentDomainDisabled(false)
-      } else {
-        // 如果当前未禁用，则添加到列表中（禁用）
-        newDisabledDomains = [...disabledDomains, currentDomain]
-        setCurrentDomainDisabled(true)
+      if (isDefaultAllowed) {
+        alert('localhost 和 127.0.0.1 是默认允许的域名，无需手动添加')
+        return
       }
 
-      await storage.set('disabledDomains', newDisabledDomains)
+      const allowedDomains = await storage.get<string[]>('allowedDomains') || []
+      const isCurrentlyAllowed = allowedDomains.includes(currentDomain)
+
+      let newAllowedDomains: string[]
+      if (isCurrentlyAllowed) {
+        // 如果当前已在白名单中，则从列表中移除（禁用）
+        newAllowedDomains = allowedDomains.filter(d => d !== currentDomain)
+        setCurrentDomainAllowed(false)
+      } else {
+        // 如果当前不在白名单中，则添加到列表中（启用）
+        newAllowedDomains = [...allowedDomains, currentDomain]
+        setCurrentDomainAllowed(true)
+      }
+
+      await storage.set('allowedDomains', newAllowedDomains)
     } catch (error) {
-      console.error('切换网站启用状态失败:', error)
+      console.error('切换网站白名单状态失败:', error)
       alert('操作失败，请重试')
     }
   }
@@ -396,7 +415,7 @@ function IndexPopup() {
           </label>
         </div>
 
-        {/* 当前网站启用/禁用开关 */}
+        {/* 当前网站白名单开关 */}
         {currentDomain && (
           <div
             style={{
@@ -422,10 +441,21 @@ function IndexPopup() {
               <div
                 style={{
                   fontSize: '11px',
-                  color: currentDomainDisabled ? '#ff4d4f' : '#52c41a',
+                  color: currentDomainAllowed ? '#52c41a' : '#ff4d4f',
                 }}
               >
-                {currentDomainDisabled ? '已禁用' : '已启用'}
+                {currentDomainAllowed ? '已启用（在白名单中）' : '未启用（不在白名单中）'}
+              </div>
+              <div
+                style={{
+                  fontSize: '10px',
+                  color: '#8c8c8c',
+                  marginTop: '2px',
+                }}
+              >
+                {currentDomainAllowed 
+                  ? '插件可以在此网站使用' 
+                  : '需要添加到白名单才能使用'}
               </div>
             </div>
             <label
@@ -434,12 +464,12 @@ function IndexPopup() {
                 display: 'inline-block',
                 width: '44px',
                 height: '22px',
-                cursor: 'pointer',
+                cursor: pluginEnabled ? 'pointer' : 'not-allowed',
               }}
             >
               <input
                 type="checkbox"
-                checked={!currentDomainDisabled}
+                checked={currentDomainAllowed}
                 onChange={handleToggleCurrentDomain}
                 disabled={!pluginEnabled}
                 style={{
@@ -455,7 +485,7 @@ function IndexPopup() {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  backgroundColor: !currentDomainDisabled ? '#1890ff' : '#ccc',
+                  backgroundColor: currentDomainAllowed ? '#1890ff' : '#ccc',
                   borderRadius: '22px',
                   transition: 'background-color 0.3s',
                   opacity: pluginEnabled ? 1 : 0.5,
@@ -467,7 +497,7 @@ function IndexPopup() {
                     content: '""',
                     height: '18px',
                     width: '18px',
-                    left: !currentDomainDisabled ? '22px' : '2px',
+                    left: currentDomainAllowed ? '22px' : '2px',
                     bottom: '2px',
                     backgroundColor: '#fff',
                     borderRadius: '50%',
