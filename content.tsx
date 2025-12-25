@@ -167,25 +167,42 @@ function AutoFillButton() {
           left: number | string
           right: number | string
         }>("buttonPosition")
-        if (savedPosition) {
+        if (savedPosition && savedPosition.top !== undefined) {
+          // 如果有保存的位置，使用保存的top值
           setPosition({
             top: savedPosition.top,
-            left:
-              savedPosition.left === "auto"
-                ? "auto"
-                : typeof savedPosition.left === "number"
-                ? savedPosition.left
-                : Number(savedPosition.left),
-            right:
-              savedPosition.right === "auto"
-                ? "auto"
-                : typeof savedPosition.right === "number"
-                ? savedPosition.right
-                : Number(savedPosition.right),
+            left: "auto",
+            right: 14,
           })
+        } else {
+          // 如果没有保存的位置，设置为垂直居中
+          // 延迟执行，确保按钮已渲染，可以获取按钮高度
+          setTimeout(() => {
+            if (buttonContainerRef.current) {
+              const buttonHeight = buttonContainerRef.current.offsetHeight
+              const centerTop = (window.innerHeight - buttonHeight) / 2
+              setPosition({
+                top: Math.max(0, centerTop),
+                left: "auto",
+                right: 14,
+              })
+            }
+          }, 100)
         }
       } catch (error) {
         console.error("加载按钮位置失败:", error)
+        // 出错时也设置为垂直居中
+        setTimeout(() => {
+          if (buttonContainerRef.current) {
+            const buttonHeight = buttonContainerRef.current.offsetHeight
+            const centerTop = (window.innerHeight - buttonHeight) / 2
+            setPosition({
+              top: Math.max(0, centerTop),
+              left: "auto",
+              right: 14,
+            })
+          }
+        }, 100)
       }
     }
     loadPosition()
@@ -195,37 +212,23 @@ function AutoFillButton() {
 
   // 监听窗口大小变化，自动调整按钮位置
   useEffect(() => {
-    // 检查并调整按钮位置，确保按钮始终在可视区域内
+    // 检查并调整按钮位置，确保按钮始终在可视区域内（只调整垂直位置）
     const adjustPositionToViewport = () => {
       // 如果按钮容器还没有渲染，直接返回
       if (!buttonContainerRef.current) return
 
       const buttonElement = buttonContainerRef.current
       const rect = buttonElement.getBoundingClientRect()
-      const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
-      const buttonWidth = rect.width
       const buttonHeight = rect.height
 
       // 获取按钮当前的实际位置
-      const currentLeft = rect.left
       const currentTop = rect.top
 
-      // 检查是否需要调整位置
-      let newLeft = currentLeft
+      // 检查是否需要调整位置（只检查垂直方向）
       let newTop = currentTop
       let needAdjust = false
 
-      // 检查右边界：如果按钮右边缘超出视口
-      if (currentLeft + buttonWidth > viewportWidth) {
-        newLeft = Math.max(0, viewportWidth - buttonWidth)
-        needAdjust = true
-      }
-      // 检查左边界：如果按钮左边缘超出视口
-      if (currentLeft < 0) {
-        newLeft = 0
-        needAdjust = true
-      }
       // 检查下边界：如果按钮下边缘超出视口
       if (currentTop + buttonHeight > viewportHeight) {
         newTop = Math.max(0, viewportHeight - buttonHeight)
@@ -237,19 +240,19 @@ function AutoFillButton() {
         needAdjust = true
       }
 
-      // 如果需要调整，更新位置并保存
+      // 如果需要调整，更新位置并保存（保持靠右）
       if (needAdjust) {
         setPosition({
           top: newTop,
-          left: newLeft,
-          right: "auto",
+          left: "auto",
+          right: 14,
         })
         // 保存调整后的位置
         storage
           .set("buttonPosition", {
             top: newTop,
-            left: newLeft,
-            right: "auto",
+            left: "auto",
+            right: 14,
           })
           .catch((error) => {
             console.error("保存调整后的按钮位置失败:", error)
@@ -281,7 +284,7 @@ function AutoFillButton() {
     }
   }, []) // 只在组件挂载时设置一次监听器
 
-  // 处理拖拽开始
+  // 处理拖拽开始（可以自由拖动，但保存时只保存Y坐标，X始终靠右）
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // 只在点击按钮容器区域时开始拖拽，点击按钮本身不拖拽
     const target = e.target as HTMLElement
@@ -300,6 +303,7 @@ function AutoFillButton() {
     const startTop = rect.top
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
+      // 计算水平和垂直方向的移动距离，允许自由拖动
       const deltaX = moveEvent.clientX - startX
       const deltaY = moveEvent.clientY - startY
 
@@ -313,6 +317,7 @@ function AutoFillButton() {
       newLeft = Math.max(0, Math.min(newLeft, maxLeft))
       newTop = Math.max(0, Math.min(newTop, maxTop))
 
+      // 拖拽过程中可以自由移动，使用left定位
       setPosition({ top: newTop, left: newLeft, right: "auto" })
     }
 
@@ -321,16 +326,26 @@ function AutoFillButton() {
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseup", handleMouseUp)
 
-      // 保存位置
+      // 保存位置：只保存top（Y坐标），X坐标恢复为靠右
       try {
         const rect = buttonElement.getBoundingClientRect()
-        const maxLeft = window.innerWidth - buttonElement.offsetWidth
         const maxTop = window.innerHeight - buttonElement.offsetHeight
 
+        // 只保存垂直位置
+        const savedTop = Math.max(0, Math.min(rect.top, maxTop))
+
+        // 恢复靠右位置
+        setPosition({
+          top: savedTop,
+          left: "auto",
+          right: 14,
+        })
+
+        // 保存位置（只保存top，X始终靠右）
         const savedPosition = {
-          top: Math.max(0, Math.min(rect.top, maxTop)),
-          left: Math.max(0, Math.min(rect.left, maxLeft)),
-          right: "auto" as const,
+          top: savedTop,
+          left: "auto" as const,
+          right: 14,
         }
 
         await storage.set("buttonPosition", savedPosition)
